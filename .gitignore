@@ -2,8 +2,8 @@ node_modules
 .DS_Store
 .idea
 
-/corpus
-/corpus-temp
-/output-data
+corpus
+corpus-temp
+output-data
 
 test.js

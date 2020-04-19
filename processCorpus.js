@@ -1,41 +1,42 @@
 const natural = require('natural');
-const Morphy = require('phpmorphy');
 
 const {
     getFilesFromDirectory,
     readDataFromFile
 } = require('./helpers/filesHelper');
 
-const tokenizer = new natural.WordTokenizer();
-const morphy = new Morphy('ru', {
-    storage: Morphy.STORAGE_MEM,
-    predict_by_suffix: true,
-    predict_by_db: true,
-    graminfo_as_text: true,
-    use_ancodes_cache: false,
-    resolve_ancodes: Morphy.RESOLVE_ANCODES_AS_TEXT,
-});
+const sentenceTokenizer = new natural.SentenceTokenizer();
+const wordTokenizer = new natural.WordTokenizer();
+const stemmer = natural.PorterStemmerRu;
+const NGrams = natural.NGrams;
+
+const NUMBER_REG_EXP = /\d+/g;
 
 const REDUNDANT_FILES_NAMES = ['.DS_Store'];
 const START_TOKEN = '__START__';
+const NUMBER_TOKEN = '__NUMBER__';
 const END_TOKEN = '__END__';
 
-readCorpus = async (corpusDirectory) => {
+let readCorpus = async (corpusDirectory) => {
     try {
         const documentsList = removeRedundantDocuments(
             await getFilesListFromCorpus(corpusDirectory)
         );
-        const tokens = await getTokensFromDocuments(
+        const sentences = await getSentencesFromDocuments(
             corpusDirectory, documentsList
         );
-        const lemmas = getLemmasFromTokens(tokens);
-        lemmas.unshift(START_TOKEN);
-        lemmas.push(END_TOKEN);
+        const normalizedTokens = splitSentencesToTokens(
+            sentences
+        );
 
-        const biGrams = NGrams.bigrams(lemmas);
-        const triGrams = NGrams.trigrams(lemmas);
+        const biGrams = normalizedTokens.map(tokenizedSentence => {
+            return NGrams.bigrams(tokenizedSentence);
+        });
+        const triGrams = normalizedTokens.map(tokenizedSentence => {
+            return NGrams.trigrams(tokenizedSentence);
+        });
 
-        return {documentsList, lemmas, biGrams, triGrams};
+        return {documentsList, normalizedTokens, biGrams, triGrams};
     } catch (err) {
         throw err;
     }
@@ -58,34 +59,46 @@ removeRedundantDocuments = documentsList => {
     );
 };
 
-getTokensFromDocuments = async (corpusDirectory, documentsList) => {
-    console.log('Getting tokens from documents...');
-    let tokens = [];
+getSentencesFromDocuments = async (corpusDirectory, documentsList) => {
+    console.log('Getting sentences from documents...');
+    let sentences = [];
     try {
         for (let fileName of documentsList) {
             const dataFromFile = await readDataFromFile(
                 corpusDirectory + fileName
             );
-            tokens = tokens.concat(
-                tokenizer.tokenize(dataFromFile)
+            sentences = sentences.concat(
+                sentenceTokenizer.tokenize(dataFromFile)
             );
         }
 
-        return tokens.map(t => {
-            return t.toLowerCase();
-        });
+        return sentences;
     } catch (err) {
         throw err;
     }
+}
+
+splitSentencesToTokens = sentences => {
+    console.log('Splitting sentences to tokens...');
+    return sentences.map(sentence => {
+        const tokens = wordTokenizer.tokenize(sentence);
+        const lemmas = getStemsFromTokens(tokens);
+
+        lemmas.unshift(START_TOKEN);
+        lemmas.push(END_TOKEN);
+
+        return lemmas;
+    })
 };
 
-getLemmasFromTokens = tokens => {
-    console.log('Getting lemmas from tokens...');
-    return tokens
-        .map(token => morphy.lemmatize(
-            token,
-            Morphy.NORMAL
-        )[0].toLowerCase())
+getStemsFromTokens = tokens => {
+    return tokens.map(token => {
+        if (token.match(NUMBER_REG_EXP)) {
+            return NUMBER_TOKEN;
+        }
+
+        return stemmer.stem(token);
+    })
 };
 
 
