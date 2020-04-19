@@ -1,6 +1,15 @@
 const fs = require('fs').promises;
 const path = require('path');
 
+isDirectory = async dirPath => {
+    const resolvedDirPath = path.resolve(dirPath);
+    try {
+        return (await fs.lstat(resolvedDirPath)).isDirectory();
+    } catch (err) {
+        throw err;
+    }
+}
+
 isFileExists = async filePath => {
     const resolveFilePath = path.resolve(filePath);
     try {
@@ -69,6 +78,7 @@ deleteFile = async (filePath) => {
 };
 
 module.exports = {
+    isDirectory,
     isFileExists,
     getFilesFromDirectory,
     getDocumentName,

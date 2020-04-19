@@ -2,9 +2,8 @@
   "name": "markov-language-model",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "fit.js",
   "scripts": {
-    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,6 +13,6 @@
     "dotenv": "8.2.0",
     "path": "0.12.7",
     "natural": "0.6.3",
-    "phpmorphy": "2.3.2"
+    "mystem3": "1.2.1"
   }
 }

@@ -6,8 +6,8 @@ const {
 
 class MarkovChain {
     static #minProbability = 0.0000000001;
-    static #countModelFileName = './countMarkovModel.json';
-    static #probModelFileName = './probMarkovModel.json';
+    static #pathToSaveCountModel = './markovModel.count.json';
+    static #pathToSaveProbModel = './markovModel.prob.json';
 
     #countModel;
     #probModel;
@@ -26,20 +26,22 @@ class MarkovChain {
         return MarkovChain.#minProbability;
     }
 
-    static setCountModelFileName(newFileName) {
-        if (newFileName) MarkovChain.#countModelFileName = newFileName;
+    static setPathToSaveCountModel(outFolder, newFileName) {
+        if (newFileName)
+            MarkovChain.#pathToSaveCountModel = path.resolve(outFolder, newFileName);
     }
 
-    static setProbModelFileName(newFileName) {
-        if (newFileName) MarkovChain.#probModelFileName = newFileName;
+    static setPathToSaveProbModel(outFolder, newFileName) {
+        if (newFileName)
+            MarkovChain.#pathToSaveProbModel = path.resolve(outFolder, newFileName);
     }
 
-    static getCountModelFileName() {
-        return MarkovChain.#countModelFileName;
+    static getPathToSaveCountModel() {
+        return MarkovChain.#pathToSaveCountModel;
     }
 
-    static getProbModelFileName() {
-        return MarkovChain.#probModelFileName;
+    static getPathToSaveProbModel() {
+        return MarkovChain.#pathToSaveProbModel;
     }
 
 
@@ -130,30 +132,38 @@ class MarkovChain {
         return this.#probModel;
     }
 
-    async saveTrainedModel(outDir) {
-        const outCountObject = this.#modelToObject(this.#countModel);
-        const outProbObject = this.#modelToObject(this.#probModel);
+    async saveTrainedModel() {
+        try {
+            const outCountObject = this.#modelToObject(this.#countModel);
+            const outProbObject = this.#modelToObject(this.#probModel);
 
-        await writeDataToFile(
-            path.resolve(outDir, `./${MarkovChain.getCountModelFileName()}`),
-            JSON.stringify(outCountObject)
-        );
-        await writeDataToFile(
-            path.resolve(outDir, `./${MarkovChain.getProbModelFileName()}`),
-            JSON.stringify(outProbObject)
-        );
+            await writeDataToFile(
+                MarkovChain.#pathToSaveCountModel,
+                JSON.stringify(outCountObject)
+            );
+            await writeDataToFile(
+                MarkovChain.#pathToSaveProbModel,
+                JSON.stringify(outProbObject)
+            );
+        } catch (e) {
+            throw e;
+        }
     }
 
-    async loadTrainedModel(inDir) {
-        const countModelData = await readDataFromFile(
-            path.resolve(inDir, `./${MarkovChain.getCountModelFileName()}`)
-        );
-        const probModelData = await readDataFromFile(
-            path.resolve(inDir, `./${MarkovChain.getProbModelFileName()}`)
-        );
+    async loadTrainedModel() {
+        try {
+            const countModelData = await readDataFromFile(
+                MarkovChain.#pathToSaveCountModel
+            );
+            const probModelData = await readDataFromFile(
+                MarkovChain.#pathToSaveProbModel
+            );
 
-        this.#countModel = new Map(Object.entries(JSON.parse(countModelData)));
-        this.#probModel = new Map(Object.entries(JSON.parse(probModelData)));
+            this.#countModel = new Map(Object.entries(JSON.parse(countModelData)));
+            this.#probModel = new Map(Object.entries(JSON.parse(probModelData)));
+        } catch (e) {
+            throw e;
+        }
     }
 }
 

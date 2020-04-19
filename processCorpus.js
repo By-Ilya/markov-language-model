@@ -1,4 +1,5 @@
 const natural = require('natural');
+const MyStem = require('mystem3');
 
 const {
     getFilesFromDirectory,
@@ -7,8 +8,10 @@ const {
 
 const sentenceTokenizer = new natural.SentenceTokenizer();
 const wordTokenizer = new natural.WordTokenizer();
-const stemmer = natural.PorterStemmerRu;
+const myStem = new MyStem();
 const NGrams = natural.NGrams;
+
+myStem.start();
 
 const NUMBER_REG_EXP = /\d+/g;
 
@@ -25,7 +28,7 @@ let readCorpus = async (corpusDirectory) => {
         const sentences = await getSentencesFromDocuments(
             corpusDirectory, documentsList
         );
-        const normalizedTokens = splitSentencesToTokens(
+        const normalizedTokens = await splitSentencesToTokens(
             sentences
         );
 
@@ -78,28 +81,39 @@ getSentencesFromDocuments = async (corpusDirectory, documentsList) => {
     }
 }
 
-splitSentencesToTokens = sentences => {
+splitSentencesToTokens = async sentences => {
     console.log('Splitting sentences to tokens...');
-    return sentences.map(sentence => {
+    let normalizedTokens = [];
+    for (let sentence of sentences) {
         const tokens = wordTokenizer.tokenize(sentence);
-        const lemmas = getStemsFromTokens(tokens);
+        const lemmas = await getLemmasFromTokens(tokens);
 
         lemmas.unshift(START_TOKEN);
         lemmas.push(END_TOKEN);
 
-        return lemmas;
-    })
+        normalizedTokens.push(lemmas);
+    }
+
+    return normalizedTokens;
 };
 
-getStemsFromTokens = tokens => {
-    return tokens.map(token => {
+getLemmasFromTokens = async tokens => {
+    let lemmas = [];
+    for (let token of tokens) {
         if (token.match(NUMBER_REG_EXP)) {
-            return NUMBER_TOKEN;
+            lemmas.push(NUMBER_TOKEN);
+            continue;
         }
+        const lemma = await getLemmaInPromise(token);
+        lemmas.push(lemma.toLowerCase());
+    }
 
-        return stemmer.stem(token);
-    })
+    return lemmas;
 };
+
+getLemmaInPromise = async token => {
+    return myStem.lemmatize(token);
+}
 
 
 module.exports = readCorpus;
