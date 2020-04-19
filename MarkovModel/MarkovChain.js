@@ -15,6 +15,8 @@ class MarkovChain {
     #addKey;
     #calculateProbabilities;
     #modelToObject;
+    #objectToModel;
+    #entireObjectsToMaps;
 
     static setMinProbability(newMinProbability) {
         if (newMinProbability >= 0 && newMinProbability <= 1) {
@@ -91,6 +93,21 @@ class MarkovChain {
 
             return out;
         }
+
+        this.#objectToModel = (inObject) => {
+            const mapWithObjects = new Map(Object.entries(JSON.parse(inObject)));
+            return this.#entireObjectsToMaps(mapWithObjects);
+        }
+
+        this.#entireObjectsToMaps = (inModel) => {
+            let inMap = new Map();
+            for (let [key, obj] of inModel) {
+                const entireMap = new Map(Object.entries(obj));
+                inMap.set(key, entireMap);
+            }
+
+            return inMap;
+        }
     }
 
     fit(biGrams) {
@@ -159,8 +176,8 @@ class MarkovChain {
                 MarkovChain.#pathToSaveProbModel
             );
 
-            this.#countModel = new Map(Object.entries(JSON.parse(countModelData)));
-            this.#probModel = new Map(Object.entries(JSON.parse(probModelData)));
+            this.#countModel = this.#objectToModel(countModelData);
+            this.#probModel = this.#objectToModel(probModelData);
         } catch (e) {
             throw e;
         }

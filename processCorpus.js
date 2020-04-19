@@ -1,3 +1,4 @@
+const path = require('path');
 const natural = require('natural');
 const MyStem = require('mystem3');
 
@@ -68,7 +69,7 @@ getSentencesFromDocuments = async (corpusDirectory, documentsList) => {
     try {
         for (let fileName of documentsList) {
             const dataFromFile = await readDataFromFile(
-                corpusDirectory + fileName
+                path.resolve(corpusDirectory, fileName)
             );
             sentences = sentences.concat(
                 sentenceTokenizer.tokenize(dataFromFile)

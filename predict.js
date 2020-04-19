@@ -11,15 +11,15 @@ let CORPUS_DATA = {
     triGrams: []
 }
 
-runFitting = async () => {
+runPrediction = async () => {
     try {
         if (args.length < 2) {
             console.error(`Error: specify command with all required arguments.`);
             process.exit(0);
         }
-        const corpusFolder = args[0];
-        if (!await isDirectory(corpusFolder)) {
-            console.error(`Error: specified corpus folder is not directory.`);
+        const testDataFolder = args[0];
+        if (!await isDirectory(testDataFolder)) {
+            console.error(`Error: specified test data folder is not directory.`);
             process.exit(0);
         }
 
@@ -31,23 +31,28 @@ runFitting = async () => {
             outputFolder, `${modelName}.prob.json`
         );
 
-        CORPUS_DATA = await readCorpus(corpusFolder);
+        console.log(`Loading saved models...`);
+        printModelPaths();
+        let markovModel = new MarkovChain();
+        await markovModel.loadTrainedModel(outputFolder);
+
+        console.log(`Models was loaded. Load data from test corpus...`);
+        CORPUS_DATA = await readCorpus(testDataFolder);
         printStats();
 
-        let markovModel = new MarkovChain();
-
-        console.log('Fitting Markov model...');
+        console.log(`Predict data...`);
+        let sumProbabilities = 0;
+        let countPredictedSentences = 0;
         CORPUS_DATA.biGrams.forEach(sentenceBiGrams => {
-            markovModel.fit(sentenceBiGrams);
+            let predictionProb = markovModel.predict(sentenceBiGrams);
+            sumProbabilities += predictionProb;
+            countPredictedSentences += 1;
         });
 
-        console.log('Saving fitted models...');
-        printModelPaths();
-        await markovModel.saveTrainedModel(outputFolder);
-        console.log('Models saved successfully and are ready to use for future predictions!');
+        console.log(`Prediction result = ${sumProbabilities / countPredictedSentences}`);
         process.exit(0);
-    } catch (e) {
-        console.error(e);
+    } catch (err) {
+        console.error(err);
         process.exit(0);
     }
 }
@@ -61,10 +66,10 @@ printStats = () => {
 
 printModelPaths = () => {
     console.log(
-        ` - Path to save count model: ${MarkovChain.getPathToSaveCountModel()}\n` +
-        ` - Path to save prob model: ${MarkovChain.getPathToSaveProbModel()}\n`
+        ` - Path to load count model: ${MarkovChain.getPathToSaveCountModel()}\n` +
+        ` - Path to load prob model: ${MarkovChain.getPathToSaveProbModel()}\n`
     );
 }
 
 
-runFitting();
+runPrediction();
