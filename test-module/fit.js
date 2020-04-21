@@ -1,7 +1,7 @@
-const { outputFolder } = require('./config');
-const { isDirectory } = require('./helpers/filesHelper');
-const readCorpus = require('./processCorpus');
-const MarkovChain = require('./MarkovModel/MarkovChain');
+const { outputFolder } = require('../config');
+const { isDirectory } = require('../helpers/filesHelper');
+const readCorpus = require('../processCorpus');
+const MarkovChain = require('../MarkovModel/MarkovChain');
 
 const args = process.argv.slice(2);
 let CORPUS_DATA = {

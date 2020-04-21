@@ -29,25 +29,21 @@ let readCorpus = async (corpusDirectory) => {
         const sentences = await getSentencesFromDocuments(
             corpusDirectory, documentsList
         );
-        const normalizedTokens = await splitSentencesToTokens(
+        const normalizedSentences = await splitSentencesToTokens(
             sentences
         );
 
-        const biGrams = normalizedTokens.map(tokenizedSentence => {
+        const biGrams = normalizedSentences.map(tokenizedSentence => {
             return NGrams.bigrams(tokenizedSentence);
         });
-        const triGrams = normalizedTokens.map(tokenizedSentence => {
-            return NGrams.trigrams(tokenizedSentence);
-        });
 
-        return {documentsList, normalizedTokens, biGrams, triGrams};
+        return {documentsList, normalizedSentences, biGrams};
     } catch (err) {
         throw err;
     }
 };
 
 getFilesListFromCorpus = async (corpusDirectory) => {
-    console.log('Getting documents from corpus folder...');
     try {
         return await getFilesFromDirectory(
             corpusDirectory
@@ -64,7 +60,6 @@ removeRedundantDocuments = documentsList => {
 };
 
 getSentencesFromDocuments = async (corpusDirectory, documentsList) => {
-    console.log('Getting sentences from documents...');
     let sentences = [];
     try {
         for (let fileName of documentsList) {
@@ -83,7 +78,6 @@ getSentencesFromDocuments = async (corpusDirectory, documentsList) => {
 }
 
 splitSentencesToTokens = async sentences => {
-    console.log('Splitting sentences to tokens...');
     let normalizedTokens = [];
     for (let sentence of sentences) {
         const tokens = wordTokenizer.tokenize(sentence);
