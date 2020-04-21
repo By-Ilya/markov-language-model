@@ -28,7 +28,6 @@ In the project root directory run `npm start` command.
 See the result in the system console.
 
 ## Output example
- 
  RESULTS:
  - Count experiments: 100
  - Train set size: 0.8
