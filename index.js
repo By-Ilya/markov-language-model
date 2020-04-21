@@ -2,37 +2,19 @@ const {
     blrCorpusPath,
     ruCorpusPath,
     ukrCorpusPath,
-    trainSize
+    trainSize,
+    countExperiments
 } = require('./config');
 const readCorpus = require('./processCorpus');
 const shuffle = require('./helpers/shuffle');
 const MarkovChain = require('./MarkovModel/MarkovChain');
 const { calculateAccuracy } = require('./helpers/metrics');
 
-let BLR = {
-    model: new MarkovChain(),
-    train: [],
-    test: [],
-    label: 'blr'
-};
-let RU = {
-    model: new MarkovChain(),
-    train: [],
-    test: [],
-    label: 'ru'
-};
-let UKR = {
-    model: new MarkovChain(),
-    train: [],
-    test: [],
-    label: 'ukr'
-};
+let BLR = {};
+let RU = {};
+let UKR = {};
 
-let EXPERIMENT_RESULTS = {
-    positiveAnswers: 0,
-    allAnswers: 0,
-    accuracy: 0
-}
+let EXPERIMENT_RESULTS = {};
 
 run = async () => {
     try {
@@ -40,7 +22,58 @@ run = async () => {
         const blrCorpus = await getCorpusData(blrCorpusPath);
         const ruCorpus = await getCorpusData(ruCorpusPath);
         const ukrCorpus = await getCorpusData(ukrCorpusPath);
+        console.log('All corps was read successfully. Running experiments...');
 
+        let sumAccuracy = 0;
+        for (let i = 0; i < countExperiments; i++) {
+            runInitStage();
+            console.log(`\n----- Experiment ${i + 1}:`);
+            await runOneExperiment({blrCorpus, ruCorpus, ukrCorpus});
+            sumAccuracy += EXPERIMENT_RESULTS.accuracy;
+        }
+
+        console.log(
+            '\n RESULTS:\n' +
+            ` - Count experiments: ${countExperiments}\n` +
+            ` - Train set size: ${trainSize}\n` +
+            ` - Avg accuracy = ${sumAccuracy / countExperiments}`
+        );
+        process.exit(0);
+    } catch (error) {
+        console.error(error);
+        process.exit(0);
+    }
+}
+
+runInitStage = () => {
+    BLR = {
+        model: new MarkovChain(),
+        train: [],
+        test: [],
+        label: 'blr'
+    };
+    RU = {
+        model: new MarkovChain(),
+        train: [],
+        test: [],
+        label: 'ru'
+    };
+    UKR = {
+        model: new MarkovChain(),
+        train: [],
+        test: [],
+        label: 'ukr'
+    };
+
+    EXPERIMENT_RESULTS = {
+        positiveAnswers: 0,
+        allAnswers: 0,
+        accuracy: 0
+    };
+};
+
+runOneExperiment = async ({blrCorpus, ruCorpus, ukrCorpus}) => {
+    try {
         console.log('Make train and test sets...');
         const blrSet = getTrainTestSets(blrCorpus.biGrams);
         BLR.train = blrSet.train;
@@ -62,7 +95,7 @@ run = async () => {
         console.log('Prediction...');
         testData.forEach(labeledSentence => {
             const predictedLabel = getBestPrediction(labeledSentence.sentence).label;
-            console.log(`Predicted: ${predictedLabel}, true: ${labeledSentence.label}`);
+            // console.log(`Predicted: ${predictedLabel}, true: ${labeledSentence.label}`);
             if (predictedLabel === labeledSentence.label)
                 EXPERIMENT_RESULTS.positiveAnswers++;
         });
@@ -72,13 +105,9 @@ run = async () => {
             EXPERIMENT_RESULTS.allAnswers
         );
 
-        console.log('\nExperiment results:');
-        console.log(EXPERIMENT_RESULTS);
-
-        process.exit(0);
+        console.log('\nExperiment results:', EXPERIMENT_RESULTS);
     } catch (error) {
-        console.error(error);
-        process.exit(0);
+        throw error;
     }
 }
 
