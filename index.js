@@ -2,6 +2,7 @@ const {
     blrCorpusPath,
     ruCorpusPath,
     ukrCorpusPath,
+    N,
     trainSize,
     countExperiments
 } = require('./config');
@@ -59,6 +60,7 @@ run = async () => {
         console.log(
             '\nRESULTS:\n' +
             ` - Count experiments: ${countExperiments}\n` +
+            ` - NGrams: ${N}\n` +
             ` - Train set size: ${trainSize}\n` +
             ` - Avg accuracy = ${sumAccuracy / countExperiments}\n` +
             ' - BLR metrics: ' + JSON.stringify(blrAvgMetrics) + '\n' +
@@ -123,13 +125,13 @@ runInitStage = () => {
 runOneExperiment = async ({blrCorpus, ruCorpus, ukrCorpus}) => {
     try {
         console.log('Make train and test sets...');
-        const blrSet = getTrainTestSets(blrCorpus.biGrams);
+        const blrSet = getTrainTestSets(blrCorpus.nGrams);
         BLR.train = blrSet.train;
         BLR.test = blrSet.test;
-        const ruSet = getTrainTestSets(ruCorpus.biGrams);
+        const ruSet = getTrainTestSets(ruCorpus.nGrams);
         RU.train = ruSet.train;
         RU.test = ruSet.test;
-        const ukrSet = getTrainTestSets(ukrCorpus.biGrams);
+        const ukrSet = getTrainTestSets(ukrCorpus.nGrams);
         UKR.train = ukrSet.train;
         UKR.test = ukrSet.test;
 
@@ -181,8 +183,8 @@ getCorpusData = async (corpusPath) => {
     return corpusData;
 }
 
-getTrainTestSets = (biGramsSentences) => {
-    const shuffledSentences = shuffle(biGramsSentences);
+getTrainTestSets = (nGramsSentences) => {
+    const shuffledSentences = shuffle(nGramsSentences);
     const slicedIndex = Math.ceil(shuffledSentences.length * trainSize);
     return {
         train: shuffledSentences.slice(0, slicedIndex),
@@ -199,7 +201,7 @@ fitModels = () => {
     });
     UKR.train.forEach(sentence => {
         UKR.model.fit(sentence);
-    })
+    });
 }
 
 mergeAndShuffleTestData = () => {

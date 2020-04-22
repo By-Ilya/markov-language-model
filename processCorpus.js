@@ -2,6 +2,7 @@ const path = require('path');
 const natural = require('natural');
 const MyStem = require('mystem3');
 
+const { N } = require('./config');
 const {
     getFilesFromDirectory,
     readDataFromFile
@@ -29,15 +30,15 @@ let readCorpus = async (corpusDirectory) => {
         const sentences = await getSentencesFromDocuments(
             corpusDirectory, documentsList
         );
-        const normalizedSentences = await splitSentencesToTokens(
+        const normalizedSentences = await splitSentencesToSymbols(
             sentences
         );
 
-        const biGrams = normalizedSentences.map(tokenizedSentence => {
-            return NGrams.bigrams(tokenizedSentence);
+        const nGrams = normalizedSentences.map(tokenizedSentence => {
+            return NGrams.ngrams(tokenizedSentence, N);
         });
 
-        return {documentsList, normalizedSentences, biGrams};
+        return {documentsList, normalizedSentences, nGrams};
     } catch (err) {
         throw err;
     }
@@ -77,16 +78,26 @@ getSentencesFromDocuments = async (corpusDirectory, documentsList) => {
     }
 }
 
-splitSentencesToTokens = async sentences => {
+splitSentencesToSymbols = async sentences => {
     let normalizedTokens = [];
     for (let sentence of sentences) {
         const tokens = wordTokenizer.tokenize(sentence);
         const lemmas = await getLemmasFromTokens(tokens);
 
-        lemmas.unshift(START_TOKEN);
-        lemmas.push(END_TOKEN);
+        let symbols = [];
+        lemmas.forEach(lemma => {
+            if (lemma === NUMBER_TOKEN) {
+                symbols = symbols.concat(lemma);
+            } else {
+                const symbolsFromLemma = lemma.split('');
+                symbols = symbols.concat(symbolsFromLemma);
+            }
+        })
 
-        normalizedTokens.push(lemmas);
+        symbols.unshift(START_TOKEN);
+        symbols.push(END_TOKEN);
+
+        normalizedTokens.push(symbols);
     }
 
     return normalizedTokens;

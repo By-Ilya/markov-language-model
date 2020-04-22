@@ -18,6 +18,7 @@ The script create train and test sets from read corps, build models and predict 
 - `BLR_CORPUS_PATH`: `string` value, that specifies directory to the corpus with __belorusian__ texts (absolute or relative path).
 - `RU_CORPUS_PATH`: `string` value, that specifies directory to the corpus with __russian__ texts (absolute or relative path).
 - `UKR_CORPUS_PATH`: `string` value, that specifies directory to the corpus with __ukrain__ texts (absolute or relative path).
+- `N`: `integer` value, that specifies count symbols in __n-grams__.
 - `TRAIN_SIZE`: `float` value in range `[0, 1]`, that specifies the size of the train set.
 - `COUNT_EXPERIMENTS`: `integer` value, that specifies count of experiments for calculating average models accuracy.
 
@@ -28,13 +29,15 @@ In the project root directory run `npm start` command.
 See the result in the system console.
 
 ## Output example
- RESULTS:
- - Count experiments: 100
- - Train set size: 0.8
- - Avg accuracy = 0.8063157894736835
- - BLR metrics: {"precision":0.7337975067103132,"recall":0.8844399517302722,"f1":0.8011009650670684}
- - RU metrics: {"precision":0.8969163179675149,"recall":0.7582527756155912,"f1":0.8202918676252454}
- - UKR metrics: {"precision":0.8297803939614407,"recall":0.7708382330100438,"f1":0.796366800643067}
+
+RESULTS:
+- Count experiments: 100
+- NGrams: 2
+- Train set size: 0.75
+- Avg accuracy = 0.9055244755244756
+- BLR metrics: {"precision":0.9594688932444336,"recall":0.840601407416013,"f1":0.8955361430751918}
+- RU metrics: {"precision":0.8904637693044115,"recall":0.9521695942813981,"f1":0.9196658616594374}
+- UKR metrics: {"precision":0.8584191550615486,"recall":0.9571571177174141,"f1":0.9042665936746118}
 
 
 ## Used `Node JS` libraries

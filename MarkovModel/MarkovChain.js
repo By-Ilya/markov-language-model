@@ -1,4 +1,6 @@
 const path = require('path');
+
+const { N } = require('../config');
 const {
     readDataFromFile,
     writeDataToFile
@@ -12,6 +14,7 @@ class MarkovChain {
     #countModel;
     #probModel;
 
+    #nGramToKeyValue;
     #addKey;
     #calculateProbabilities;
     #modelToObject;
@@ -50,6 +53,13 @@ class MarkovChain {
     constructor() {
         this.#countModel = new Map();
         this.#probModel = new Map();
+
+        this.#nGramToKeyValue = (nGram) => {
+            const keyArray = nGram.slice(0, N - 1);
+            const key = keyArray.join('');
+
+            return {key, value: nGram[N - 1]};
+        }
 
         this.#addKey = (key, value) => {
             if (!this.#countModel.has(key)) {
@@ -110,9 +120,10 @@ class MarkovChain {
         }
     }
 
-    fit(biGrams) {
-        biGrams.forEach(biGram => {
-            this.#addKey(biGram[0], biGram[1]);
+    fit(nGrams) {
+        nGrams.forEach(nGram => {
+            const {key, value} = this.#nGramToKeyValue(nGram);
+            this.#addKey(key, value);
         });
 
         this.#calculateProbabilities();
@@ -123,13 +134,14 @@ class MarkovChain {
         this.#calculateProbabilities();
     }
 
-    predict(biGrams) {
+    predict(nGrams) {
         let sequenceProb = 1;
-        biGrams.forEach(biGram => {
-            if (this.#probModel.has(biGram[0])) {
-                const probMap = this.#probModel.get(biGram[0]);
-                if (probMap.has(biGram[1])) {
-                    sequenceProb *= probMap.get(biGram[1]);
+        nGrams.forEach(nGram => {
+            const {key, value} = this.#nGramToKeyValue(nGram);
+            if (this.#probModel.has(key)) {
+                const probMap = this.#probModel.get(key);
+                if (probMap.has(value)) {
+                    sequenceProb *= probMap.get(value);
                 } else {
                     sequenceProb *= MarkovChain.getMinProbability();
                 }
