@@ -20,6 +20,8 @@ class MarkovChain {
     #modelToObject;
     #objectToModel;
     #entireObjectsToMaps;
+    #backTracking;
+    #findTransitionProb;
 
     static setMinProbability(newMinProbability) {
         if (newMinProbability >= 0 && newMinProbability <= 1) {
@@ -54,11 +56,12 @@ class MarkovChain {
         this.#countModel = new Map();
         this.#probModel = new Map();
 
-        this.#nGramToKeyValue = (nGram) => {
-            const keyArray = nGram.slice(0, N - 1);
+        this.#nGramToKeyValue = (nGram, n) => {
+            const slicedIndex = n === undefined ? N - 1 : n - 1;
+            const keyArray = nGram.slice(0, slicedIndex);
             const key = keyArray.join('');
 
-            return {key, value: nGram[N - 1]};
+            return {key, value: nGram[slicedIndex]};
         }
 
         this.#addKey = (key, value) => {
@@ -118,11 +121,49 @@ class MarkovChain {
 
             return inMap;
         }
+
+        this.#backTracking = (key, value, backTrackingModels, index) => {
+            const firstLowerKey = key.slice(0, key.length - 1);
+            const firstLowerValue = key[key.length - 1];
+            const secondLowerKey = key.slice(1);
+            const secondLowerValue = value;
+
+            let backTrackingProb = 1;
+
+            let foundProb = this.#findTransitionProb(
+                backTrackingModels[index], firstLowerKey, firstLowerValue
+            );
+            if (foundProb === null) {
+                backTrackingProb *= (index === backTrackingModels.length - 1)
+                    ? MarkovChain.getMinProbability()
+                    : this.#backTracking(firstLowerKey, firstLowerValue, backTrackingModels, index + 1);
+            } else backTrackingProb *= foundProb;
+
+            foundProb = this.#findTransitionProb(
+                backTrackingModels[index], secondLowerKey, secondLowerValue
+            );
+            if (foundProb === null) {
+                backTrackingProb *= (index === backTrackingModels.length - 1)
+                    ? MarkovChain.getMinProbability()
+                    : this.#backTracking(secondLowerKey, secondLowerValue, backTrackingModels, index + 1);
+            } else backTrackingProb *= foundProb;
+
+            return backTrackingProb;
+        }
+
+        this.#findTransitionProb = (markovModel, key, value) => {
+            const probModel = markovModel.getProbModel();
+            if (probModel.has(key)) {
+                const probMap = probModel.get(key);
+                if (probMap.has(value)) return probMap.get(value);
+                else return null;
+            } else return null;
+        }
     }
 
-    fit(nGrams) {
+    fit(nGrams, n = undefined) {
         nGrams.forEach(nGram => {
-            const {key, value} = this.#nGramToKeyValue(nGram);
+            const {key, value} = this.#nGramToKeyValue(nGram, n);
             this.#addKey(key, value);
         });
 
@@ -134,23 +175,39 @@ class MarkovChain {
         this.#calculateProbabilities();
     }
 
-    predict(nGrams) {
-        let sequenceProb = 1;
-        nGrams.forEach(nGram => {
-            const {key, value} = this.#nGramToKeyValue(nGram);
-            if (this.#probModel.has(key)) {
-                const probMap = this.#probModel.get(key);
-                if (probMap.has(value)) {
-                    sequenceProb *= probMap.get(value);
-                } else {
-                    sequenceProb *= MarkovChain.getMinProbability();
-                }
-            } else {
-                sequenceProb *= MarkovChain.getMinProbability();
-            }
-        });
+    predict(nGrams, backTrackingModels) {
+        try {
+            let sequenceProb = 1;
 
-        return sequenceProb;
+            for (let nGram of nGrams) {
+                const {key, value} = this.#nGramToKeyValue(nGram);
+                if (this.#probModel.has(key)) {
+                    const probMap = this.#probModel.get(key);
+                    if (probMap.has(value)) sequenceProb *= probMap.get(value);
+                    else {
+                        if (!backTrackingModels && !backTrackingModels.length) {
+                            sequenceProb *= MarkovChain.getMinProbability();
+                        } else {
+                            sequenceProb *= this.#backTracking(
+                                key, value, backTrackingModels, 0
+                            );
+                        }
+                    }
+                } else {
+                    if (!backTrackingModels && !backTrackingModels.length) {
+                        sequenceProb *= MarkovChain.getMinProbability();
+                    } else {
+                        sequenceProb *= this.#backTracking(
+                            key, value, backTrackingModels, 0
+                        );
+                    }
+                }
+            }
+
+            return sequenceProb;
+        } catch (e) {
+            throw e;
+        }
     }
 
     getCountModel() {
