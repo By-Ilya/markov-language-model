@@ -176,24 +176,14 @@ class MarkovChain {
     }
 
     predict(nGrams, backTrackingModels) {
-        try {
-            let sequenceProb = 1;
+        let sequenceProb = 1;
 
-            for (let nGram of nGrams) {
-                const {key, value} = this.#nGramToKeyValue(nGram);
-                if (this.#probModel.has(key)) {
-                    const probMap = this.#probModel.get(key);
-                    if (probMap.has(value)) sequenceProb *= probMap.get(value);
-                    else {
-                        if (!backTrackingModels && !backTrackingModels.length) {
-                            sequenceProb *= MarkovChain.getMinProbability();
-                        } else {
-                            sequenceProb *= this.#backTracking(
-                                key, value, backTrackingModels, 0
-                            );
-                        }
-                    }
-                } else {
+        for (let nGram of nGrams) {
+            const {key, value} = this.#nGramToKeyValue(nGram);
+            if (this.#probModel.has(key)) {
+                const probMap = this.#probModel.get(key);
+                if (probMap.has(value)) sequenceProb *= probMap.get(value);
+                else {
                     if (!backTrackingModels && !backTrackingModels.length) {
                         sequenceProb *= MarkovChain.getMinProbability();
                     } else {
@@ -202,12 +192,18 @@ class MarkovChain {
                         );
                     }
                 }
+            } else {
+                if (!backTrackingModels && !backTrackingModels.length) {
+                    sequenceProb *= MarkovChain.getMinProbability();
+                } else {
+                    sequenceProb *= this.#backTracking(
+                            key, value, backTrackingModels, 0
+                    );
+                }
             }
-
-            return sequenceProb;
-        } catch (e) {
-            throw e;
         }
+
+        return sequenceProb;
     }
 
     getCountModel() {

@@ -126,82 +126,78 @@ runInitStage = () => {
 };
 
 runOneExperiment = async ({blrCorpus, ruCorpus, ukrCorpus}) => {
-    try {
-        console.log('Make train and test sets...');
-        const blrSet = getTrainTestSets(
-            shuffleSentencesAndGetNGrams(blrCorpus.normalizedSentences)
-        );
-        BLR.train = blrSet[0].train;
-        BLR.test = blrSet[0].test;
-        const ruSet = getTrainTestSets(
-            shuffleSentencesAndGetNGrams(ruCorpus.normalizedSentences)
-        );
-        RU.train = ruSet[0].train;
-        RU.test = ruSet[0].test;
-        const ukrSet = getTrainTestSets(
-            shuffleSentencesAndGetNGrams(ukrCorpus.normalizedSentences)
-        );
-        UKR.train = ukrSet[0].train;
-        UKR.test = ukrSet[0].test;
+    console.log('Make train and test sets...');
+    const blrSet = getTrainTestSets(
+        shuffleSentencesAndGetNGrams(blrCorpus.normalizedSentences)
+    );
+    BLR.train = blrSet[0].train;
+    BLR.test = blrSet[0].test;
+    const ruSet = getTrainTestSets(
+        shuffleSentencesAndGetNGrams(ruCorpus.normalizedSentences)
+    );
+    RU.train = ruSet[0].train;
+    RU.test = ruSet[0].test;
+    const ukrSet = getTrainTestSets(
+        shuffleSentencesAndGetNGrams(ukrCorpus.normalizedSentences)
+    );
+    UKR.train = ukrSet[0].train;
+    UKR.test = ukrSet[0].test;
 
-        console.log('Fitting all models...');
-        fitModels();
+    console.log('Fitting all models...');
+    fitModels();
 
-        let backTrackingModels = {
-            blr: [],
-            ru: [],
-            ukr: []
-        }
-        for (let i = 1; i < blrSet.length; i++) {
-            backTrackingModels.blr.push(
-                fitAndGetBackTrackingModel(blrSet[i].train, (N - i))
-            );
-        }
-        for (let i = 1; i < ruSet.length; i++) {
-            backTrackingModels.ru.push(
-                fitAndGetBackTrackingModel(ruSet[i].train, (N - i))
-            );
-        }
-        for (let i = 1; i < ukrSet.length; i++) {
-            backTrackingModels.ukr.push(
-                fitAndGetBackTrackingModel(ukrSet[i].train, (N - i))
-            );
-        }
-
-        console.log('Create test data from sets...');
-        const testData = mergeAndShuffleTestData();
-        EXPERIMENT_RESULTS.allAnswers = testData.length;
-
-        console.log('Prediction...');
-        for (let labeledSentence of testData) {
-            const predictedLabel = getBestPrediction(
-                labeledSentence.sentence, backTrackingModels
-            ).label;
-            calculateRateValues(labeledSentence.label, predictedLabel);
-            // console.log(`Predicted: ${predictedLabel}, true: ${labeledSentence.label}`);
-        }
-
-        EXPERIMENT_RESULTS.accuracy = calculateAccuracy(
-            EXPERIMENT_RESULTS.positiveAnswers,
-            EXPERIMENT_RESULTS.allAnswers
-        );
-
-        BLR.precision = calculatePrecision(BLR.TP, BLR.FP);
-        BLR.recall = calculateRecall(BLR.TP, BLR.FN);
-        BLR.F1 = calculateF1(BLR.precision, BLR.recall);
-
-        RU.precision = calculatePrecision(RU.TP, RU.FP);
-        RU.recall = calculateRecall(RU.TP, RU.FN);
-        RU.F1 = calculateF1(RU.precision, RU.recall);
-
-        UKR.precision = calculatePrecision(UKR.TP, UKR.FP);
-        UKR.recall = calculateRecall(UKR.TP, UKR.FN);
-        UKR.F1 = calculateF1(UKR.precision, UKR.recall);
-
-        console.log('\nExperiment results:', EXPERIMENT_RESULTS);
-    } catch (error) {
-        throw error;
+    let backTrackingModels = {
+        blr: [],
+        ru: [],
+        ukr: []
     }
+    for (let i = 1; i < blrSet.length; i++) {
+        backTrackingModels.blr.push(
+            fitAndGetBackTrackingModel(blrSet[i].train, (N - i))
+        );
+    }
+    for (let i = 1; i < ruSet.length; i++) {
+        backTrackingModels.ru.push(
+            fitAndGetBackTrackingModel(ruSet[i].train, (N - i))
+        );
+    }
+    for (let i = 1; i < ukrSet.length; i++) {
+        backTrackingModels.ukr.push(
+            fitAndGetBackTrackingModel(ukrSet[i].train, (N - i))
+        );
+    }
+
+    console.log('Create test data from sets...');
+    const testData = mergeAndShuffleTestData();
+    EXPERIMENT_RESULTS.allAnswers = testData.length;
+
+    console.log('Prediction...');
+    for (let labeledSentence of testData) {
+        const predictedLabel = getBestPrediction(
+            labeledSentence.sentence, backTrackingModels
+        ).label;
+        calculateRateValues(labeledSentence.label, predictedLabel);
+        // console.log(`Predicted: ${predictedLabel}, true: ${labeledSentence.label}`);
+    }
+
+    EXPERIMENT_RESULTS.accuracy = calculateAccuracy(
+        EXPERIMENT_RESULTS.positiveAnswers,
+        EXPERIMENT_RESULTS.allAnswers
+    );
+
+    BLR.precision = calculatePrecision(BLR.TP, BLR.FP);
+    BLR.recall = calculateRecall(BLR.TP, BLR.FN);
+    BLR.F1 = calculateF1(BLR.precision, BLR.recall);
+
+    RU.precision = calculatePrecision(RU.TP, RU.FP);
+    RU.recall = calculateRecall(RU.TP, RU.FN);
+    RU.F1 = calculateF1(RU.precision, RU.recall);
+
+    UKR.precision = calculatePrecision(UKR.TP, UKR.FP);
+    UKR.recall = calculateRecall(UKR.TP, UKR.FN);
+    UKR.F1 = calculateF1(UKR.precision, UKR.recall);
+
+    console.log('\nExperiment results:', EXPERIMENT_RESULTS);
 }
 
 getCorpusData = async (corpusPath) => {
@@ -265,17 +261,13 @@ mergeAndShuffleTestData = () => {
 }
 
 getBestPrediction = (sentence, backTrackingModels) => {
-    try {
-        const predictionResults = [
-            {label: BLR.label, probability: BLR.model.predict(sentence, backTrackingModels.blr)},
-            {label: RU.label, probability: RU.model.predict(sentence, backTrackingModels.ru)},
-            {label: UKR.label, probability: UKR.model.predict(sentence, backTrackingModels.ukr)},
-        ];
+    const predictionResults = [
+        {label: BLR.label, probability: BLR.model.predict(sentence, backTrackingModels.blr)},
+        {label: RU.label, probability: RU.model.predict(sentence, backTrackingModels.ru)},
+        {label: UKR.label, probability: UKR.model.predict(sentence, backTrackingModels.ukr)},
+    ];
 
-        return predictionResults.sort(probabilitySortRule)[0];
-    } catch (e) {
-        throw e;
-    }
+    return predictionResults.sort(probabilitySortRule)[0];
 }
 
 probabilitySortRule = (a, b) => {
