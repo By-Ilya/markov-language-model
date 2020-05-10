@@ -7,6 +7,7 @@ const {
     getFilesFromDirectory,
     readDataFromFile
 } = require('./helpers/filesHelper');
+const shuffle = require('./helpers/shuffle');
 
 const sentenceTokenizer = new natural.SentenceTokenizer();
 const wordTokenizer = new natural.WordTokenizer();
@@ -18,9 +19,9 @@ myStem.start();
 const NUMBER_REG_EXP = /\d+/g;
 
 const REDUNDANT_FILES_NAMES = ['.DS_Store'];
-const START_TOKEN = '__START__';
-const NUMBER_TOKEN = '__NUMBER__';
-const END_TOKEN = '__END__';
+const START_TOKEN = '*';
+const NUMBER_TOKEN = '#';
+const END_TOKEN = '$';
 
 let readCorpus = async (corpusDirectory) => {
     try {
@@ -34,15 +35,25 @@ let readCorpus = async (corpusDirectory) => {
             sentences
         );
 
-        const nGrams = normalizedSentences.map(tokenizedSentence => {
-            return NGrams.ngrams(tokenizedSentence, N);
-        });
-
-        return {documentsList, normalizedSentences, nGrams};
+        return {documentsList, normalizedSentences};
     } catch (err) {
         throw err;
     }
 };
+
+let shuffleSentencesAndGetNGrams = (sentences) => {
+    const shuffledSentences = shuffle(sentences);
+
+    let nGrams = [];
+    for (let i = N; i >= 2; i--) {
+        const currentGrams = shuffledSentences.map(tokenizedSentence => {
+            return NGrams.ngrams(tokenizedSentence, i);
+        });
+        nGrams.push(currentGrams);
+    }
+
+    return nGrams;
+}
 
 getFilesListFromCorpus = async (corpusDirectory) => {
     try {
@@ -122,4 +133,4 @@ getLemmaInPromise = async token => {
 }
 
 
-module.exports = readCorpus;
+module.exports = { readCorpus, shuffleSentencesAndGetNGrams };

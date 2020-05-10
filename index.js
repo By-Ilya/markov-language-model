@@ -6,7 +6,10 @@ const {
     trainSize,
     countExperiments
 } = require('./config');
-const readCorpus = require('./processCorpus');
+const {
+    readCorpus,
+    shuffleSentencesAndGetNGrams
+} = require('./processCorpus')
 const shuffle = require('./helpers/shuffle');
 const MarkovChain = require('./MarkovModel/MarkovChain');
 const {
@@ -123,53 +126,78 @@ runInitStage = () => {
 };
 
 runOneExperiment = async ({blrCorpus, ruCorpus, ukrCorpus}) => {
-    try {
-        console.log('Make train and test sets...');
-        const blrSet = getTrainTestSets(blrCorpus.nGrams);
-        BLR.train = blrSet.train;
-        BLR.test = blrSet.test;
-        const ruSet = getTrainTestSets(ruCorpus.nGrams);
-        RU.train = ruSet.train;
-        RU.test = ruSet.test;
-        const ukrSet = getTrainTestSets(ukrCorpus.nGrams);
-        UKR.train = ukrSet.train;
-        UKR.test = ukrSet.test;
+    console.log('Make train and test sets...');
+    const blrSet = getTrainTestSets(
+        shuffleSentencesAndGetNGrams(blrCorpus.normalizedSentences)
+    );
+    BLR.train = blrSet[0].train;
+    BLR.test = blrSet[0].test;
+    const ruSet = getTrainTestSets(
+        shuffleSentencesAndGetNGrams(ruCorpus.normalizedSentences)
+    );
+    RU.train = ruSet[0].train;
+    RU.test = ruSet[0].test;
+    const ukrSet = getTrainTestSets(
+        shuffleSentencesAndGetNGrams(ukrCorpus.normalizedSentences)
+    );
+    UKR.train = ukrSet[0].train;
+    UKR.test = ukrSet[0].test;
 
-        console.log('Fitting all models...');
-        fitModels();
+    console.log('Fitting all models...');
+    fitModels();
 
-        console.log('Create test data from sets...');
-        const testData = mergeAndShuffleTestData();
-        EXPERIMENT_RESULTS.allAnswers = testData.length;
-
-        console.log('Prediction...');
-        testData.forEach(labeledSentence => {
-            const predictedLabel = getBestPrediction(labeledSentence.sentence).label;
-            calculateRateValues(labeledSentence.label, predictedLabel);
-            // console.log(`Predicted: ${predictedLabel}, true: ${labeledSentence.label}`);
-        });
-
-        EXPERIMENT_RESULTS.accuracy = calculateAccuracy(
-            EXPERIMENT_RESULTS.positiveAnswers,
-            EXPERIMENT_RESULTS.allAnswers
-        );
-
-        BLR.precision = calculatePrecision(BLR.TP, BLR.FP);
-        BLR.recall = calculateRecall(BLR.TP, BLR.FN);
-        BLR.F1 = calculateF1(BLR.precision, BLR.recall);
-
-        RU.precision = calculatePrecision(RU.TP, RU.FP);
-        RU.recall = calculateRecall(RU.TP, RU.FN);
-        RU.F1 = calculateF1(RU.precision, RU.recall);
-
-        UKR.precision = calculatePrecision(UKR.TP, UKR.FP);
-        UKR.recall = calculateRecall(UKR.TP, UKR.FN);
-        UKR.F1 = calculateF1(UKR.precision, UKR.recall);
-
-        console.log('\nExperiment results:', EXPERIMENT_RESULTS);
-    } catch (error) {
-        throw error;
+    let backTrackingModels = {
+        blr: [],
+        ru: [],
+        ukr: []
     }
+    for (let i = 1; i < blrSet.length; i++) {
+        backTrackingModels.blr.push(
+            fitAndGetBackTrackingModel(blrSet[i].train, (N - i))
+        );
+    }
+    for (let i = 1; i < ruSet.length; i++) {
+        backTrackingModels.ru.push(
+            fitAndGetBackTrackingModel(ruSet[i].train, (N - i))
+        );
+    }
+    for (let i = 1; i < ukrSet.length; i++) {
+        backTrackingModels.ukr.push(
+            fitAndGetBackTrackingModel(ukrSet[i].train, (N - i))
+        );
+    }
+
+    console.log('Create test data from sets...');
+    const testData = mergeAndShuffleTestData();
+    EXPERIMENT_RESULTS.allAnswers = testData.length;
+
+    console.log('Prediction...');
+    for (let labeledSentence of testData) {
+        const predictedLabel = getBestPrediction(
+            labeledSentence.sentence, backTrackingModels
+        ).label;
+        calculateRateValues(labeledSentence.label, predictedLabel);
+        // console.log(`Predicted: ${predictedLabel}, true: ${labeledSentence.label}`);
+    }
+
+    EXPERIMENT_RESULTS.accuracy = calculateAccuracy(
+        EXPERIMENT_RESULTS.positiveAnswers,
+        EXPERIMENT_RESULTS.allAnswers
+    );
+
+    BLR.precision = calculatePrecision(BLR.TP, BLR.FP);
+    BLR.recall = calculateRecall(BLR.TP, BLR.FN);
+    BLR.F1 = calculateF1(BLR.precision, BLR.recall);
+
+    RU.precision = calculatePrecision(RU.TP, RU.FP);
+    RU.recall = calculateRecall(RU.TP, RU.FN);
+    RU.F1 = calculateF1(RU.precision, RU.recall);
+
+    UKR.precision = calculatePrecision(UKR.TP, UKR.FP);
+    UKR.recall = calculateRecall(UKR.TP, UKR.FN);
+    UKR.F1 = calculateF1(UKR.precision, UKR.recall);
+
+    console.log('\nExperiment results:', EXPERIMENT_RESULTS);
 }
 
 getCorpusData = async (corpusPath) => {
@@ -184,12 +212,16 @@ getCorpusData = async (corpusPath) => {
 }
 
 getTrainTestSets = (nGramsSentences) => {
-    const shuffledSentences = shuffle(nGramsSentences);
-    const slicedIndex = Math.ceil(shuffledSentences.length * trainSize);
-    return {
-        train: shuffledSentences.slice(0, slicedIndex),
-        test: shuffledSentences.slice(slicedIndex)
+    const trainTestSets = [];
+    for (let i = 0; i < nGramsSentences.length; i++) {
+        const slicedIndex = Math.ceil(nGramsSentences[i].length * trainSize);
+        trainTestSets.push({
+            train: nGramsSentences[i].slice(0, slicedIndex),
+            test: nGramsSentences[i].slice(slicedIndex)
+        });
     }
+
+    return trainTestSets;
 }
 
 fitModels = () => {
@@ -202,6 +234,15 @@ fitModels = () => {
     UKR.train.forEach(sentence => {
         UKR.model.fit(sentence);
     });
+}
+
+fitAndGetBackTrackingModel = (trainSet, n) => {
+    let backTrackingModel = new MarkovChain();
+    trainSet.forEach(sentence => {
+        backTrackingModel.fit(sentence, n);
+    });
+
+    return backTrackingModel;
 }
 
 mergeAndShuffleTestData = () => {
@@ -219,11 +260,11 @@ mergeAndShuffleTestData = () => {
     return shuffle(mergedSet);
 }
 
-getBestPrediction = (sentence) => {
+getBestPrediction = (sentence, backTrackingModels) => {
     const predictionResults = [
-        {label: BLR.label, probability: BLR.model.predict(sentence)},
-        {label: RU.label, probability: RU.model.predict(sentence)},
-        {label: UKR.label, probability: UKR.model.predict(sentence)},
+        {label: BLR.label, probability: BLR.model.predict(sentence, backTrackingModels.blr)},
+        {label: RU.label, probability: RU.model.predict(sentence, backTrackingModels.ru)},
+        {label: UKR.label, probability: UKR.model.predict(sentence, backTrackingModels.ukr)},
     ];
 
     return predictionResults.sort(probabilitySortRule)[0];
@@ -239,9 +280,9 @@ calculateRateValues = (trueLabel, predictedLabel) => {
             EXPERIMENT_RESULTS.positiveAnswers++;
             BLR.TP++;
         } else {
-            BLR.TN++;
-            if (predictedLabel === 'ru') { RU.FP++; UKR.FN++ }
-            if (predictedLabel === 'ukr') { UKR.FP++; RU.FN++ }
+            BLR.FN++;
+            if (predictedLabel === 'ru') { RU.FP++; UKR.TN++ }
+            if (predictedLabel === 'ukr') { UKR.FP++; RU.TN++ }
         }
     }
     if (trueLabel === 'ru') {
@@ -249,9 +290,9 @@ calculateRateValues = (trueLabel, predictedLabel) => {
             EXPERIMENT_RESULTS.positiveAnswers++;
             RU.TP++;
         } else {
-            RU.TN++;
-            if (predictedLabel === 'blr') { BLR.FP++; UKR.FN++ }
-            if (predictedLabel === 'ukr') { UKR.FP++; BLR.FN++ }
+            RU.FN++;
+            if (predictedLabel === 'blr') { BLR.FP++; UKR.TN++ }
+            if (predictedLabel === 'ukr') { UKR.FP++; BLR.TN++ }
         }
     }
     if (trueLabel === 'ukr') {
@@ -259,9 +300,9 @@ calculateRateValues = (trueLabel, predictedLabel) => {
             EXPERIMENT_RESULTS.positiveAnswers++;
             UKR.TP++;
         } else {
-            UKR.TN++;
-            if (predictedLabel === 'blr') { BLR.FP++; RU.FN++ }
-            if (predictedLabel === 'ru') { RU.FP++; BLR.FN++ }
+            UKR.FN++;
+            if (predictedLabel === 'blr') { BLR.FP++; RU.TN++ }
+            if (predictedLabel === 'ru') { RU.FP++; BLR.TN++ }
         }
     }
 }
